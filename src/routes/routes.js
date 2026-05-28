@@ -3,6 +3,67 @@ const router = express.Router();
 
 const connection = require('../../database/connection');
 
+const bcrypt = require('bcrypt');
+
+router.post('/novo-aluno', async (req, res) => {
+    const { nome, idade, numero_chamada, senha } = req.body;
+
+    if (!nome || !idade || !numero_chamada || !senha) {
+        return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
+    }
+
+    const saltyRounds = 10;
+    const hashedPassword = await bcrypt.hash(senha, saltyRounds);
+
+    try {
+        const [id] = await connection('alunos')
+            .insert({
+                nome,
+                idade,
+                numero_chamada,
+                senha: hashedPassword
+            });
+        if (!id) {
+            return res.status(400).json({ error: 'Erro ao cadastrar aluno' });
+        }
+
+        res.status(201).json({  
+            mensagem: 'Aluno cadastrado com sucesso',
+            id,
+            nome,
+            idade,
+            numero_chamada
+        });
+
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao cadastrar aluno' });
+    }
+
+});
+
+router.post('/login', async (req, res) => {
+const { nome, senha } = req.body;
+
+if (!nome || !senha) {
+    return res.status(400).json({ error: 'Nome e senha são obrigatórios' });
+}
+
+const usuraio = await connection('alunos').where({ nome }).first();
+
+if (!usuraio) {
+    return res.status(404).json({ error: 'Usuário não encontrado' });
+}
+
+const senhaValida = await bcrypt.compare(senha, usuraio.senha);
+
+if (!senhaValida) {
+    return res.status(401).json({ error: 'Senha incorreta' });
+}
+
+res.json({ mensagem: 'Login realizado com sucesso', id: usuraio.id, nome: usuraio.nome });
+
+});
+
 router.get('/ping', (req, res) => {
     res.json({ message: 'pong' })
 });
@@ -61,8 +122,8 @@ router.put('/atualizarAluno/:id', async (req, res) => {
 
     try {
         const aluno = await connection('alunos')
-        .where({ id })
-        .update({ nome, idade, numero_chamada });
+            .where({ id })
+            .update({ nome, idade, numero_chamada });
 
         if (!id) {
             return res.status(400).json({ error: 'Erro ao atualizar o aluno1' });
@@ -83,21 +144,21 @@ router.put('/atualizarAluno/:id', async (req, res) => {
 
 });
 
-router.delete('/deletarAluno/:id', async (req, res) =>{
+router.delete('/deletarAluno/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
         const alunoDeletado = await connection('alunos')
-        .where({ id })
-        .del();
+            .where({ id })
+            .del();
 
-        if(alunoDeletado === 0){
-            return res.status(404).json({ error: 'Aluno não encontrado'})
+        if (alunoDeletado === 0) {
+            return res.status(404).json({ error: 'Aluno não encontrado' })
         }
-        
-        return res.json({  mensagem: 'Aluno deletado com sucesso'});
+
+        return res.json({ mensagem: 'Aluno deletado com sucesso' });
     } catch (error) {
-        res.status(500).json({ error: 'Erro ao deletar aluno'});
+        res.status(500).json({ error: 'Erro ao deletar aluno' });
     }
 
 
